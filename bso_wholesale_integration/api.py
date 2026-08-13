@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import time
+from zoneinfo import ZoneInfo
 
 import frappe
 from frappe import _
@@ -15,6 +16,22 @@ def _clean(value, maximum):
     if value is None:
         return ""
     return str(value).strip()[:maximum]
+
+
+def _database_datetime(value):
+    """Return a timezone-naive datetime suitable for a Frappe/MariaDB Datetime field."""
+    if not value:
+        return frappe.utils.now_datetime()
+
+    parsed = get_datetime(value)
+    if parsed.tzinfo is None:
+        return parsed
+
+    site_timezone = frappe.get_system_settings("time_zone") or "UTC"
+    try:
+        return parsed.astimezone(ZoneInfo(site_timezone)).replace(tzinfo=None)
+    except (KeyError, ValueError):
+        return parsed.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
 
 
 def _verify_request(raw_body):
@@ -84,10 +101,9 @@ def receive_wholesale_lead():
     lead.city = city
     lead.custom_bso_products_interested_in = products
     lead.custom_bso_source_url = source_url
-    lead.custom_bso_submitted_at = get_datetime(submitted_at) if submitted_at else frappe.utils.now_datetime()
+    lead.custom_bso_submitted_at = _database_datetime(submitted_at)
     lead.flags.ignore_permissions = True
     lead.save()
 
     frappe.db.commit()
     return {"ok": True, "lead": lead.name, "created": created}
-
