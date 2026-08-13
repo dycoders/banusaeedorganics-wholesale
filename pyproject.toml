@@ -1,5 +1,5 @@
 [project]
-name = "bso-wholesale-integration"
+name = "bso_wholesale_integration"
 authors = [
     { name = "Banu Saeed Organics" }
 ]
